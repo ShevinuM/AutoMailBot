@@ -5,42 +5,45 @@ from pymongo import MongoClient
 import getpass
 from email_validator import validate_email, EmailNotValidError
 import smtplib
+from dotenv import load_dotenv
+import os
+
+
+load_dotenv()
 
 client = MongoClient('mongodb://localhost:27017/')
 db = client['Researchers']
-coll = db['Test']
+coll = db['NotOnYaffle']
 
 server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
 
-EMAIL_USER, PASS = None, None
-while True:
-    try:
-        EMAIL_USER = input("Please enter you email: ")
-        break
-    except:
-        print("Email is not valid")
+PASS = None
+
+EMAIL_USER = os.getenv('USER_MAIL') 
 
 while True:
     try:
-        PASS = getpass.getpass() 
+        PASS = os.getenv("PASS") 
         server.login(EMAIL_USER, PASS)
         break
     except Exception as e:
         print("Invalid email or password")
-        print("Error", str(e))
+        sys.exit()
 
-data = coll.find({}, {'last_name': 1,
+data = coll.find({}, {'first_name': 1,
+                      'last_name': 1,
                       'email': 1,})
 
 
 for item in data:
     email = item['email']
+    first_name = item['first_name']
     last_name = item['last_name']
 
     msg = MIMEMultipart()
     msg['From'] = EMAIL_USER
     msg['To'] = email
-    msg['Subject'] = "This is a test"
+    msg['Subject'] = "Cold Ocean & Northern activities and Yaffle"
 
     with open('message.html', 'r') as f:
         html = f.read()
@@ -48,4 +51,11 @@ for item in data:
     html = html.format(last_name=last_name)
 
     msg.attach(MIMEText(html, 'html'))
-    server.sendmail(EMAIL_USER, email, msg.as_string())
+    try:
+        server.sendmail(EMAIL_USER, email, msg.as_string())
+        with open("sent_emails.txt", 'a') as f:
+            f.write(f"email: {email:<40}| name: {first_name} {last_name}\n")
+    except:
+        with open("invalid_emails.txt", 'a') as f:
+            f.write(f"email: {email:<40}| name: {first_name} {last_name}\n")
+
